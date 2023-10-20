@@ -348,8 +348,9 @@ impl ChunkingContext for DevChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OutputAssets>> {
-        let availability_info = AvailabilityInfo::Root;
+        let availability_info = availability_info.into_value();
 
         let evaluatable_assets_ref = evaluatable_assets.await?;
 
