@@ -87,7 +87,10 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: Vc::cell("extends doesn't resolve correctly".to_string()),
+                            message: Vc::cell(format!(
+                                "extends ({}) doesn't resolve correctly",
+                                extends
+                            )),
                         }
                         .cell()
                         .emit();
