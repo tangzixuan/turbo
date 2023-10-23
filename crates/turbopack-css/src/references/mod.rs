@@ -89,31 +89,19 @@ impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
                     self.origin,
                     Request::parse(Value::new(src.to_string().into())),
                     ImportAttributes::new_from_prelude(&i.clone().into_owned()).into(),
-                    IssueSource::new(
+                    IssueSource::from_byte_offset(
                         Vc::upcast(self.source),
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
+                        issue_span.lo.0 as _,
+                        issue_span.hi.0 as _,
                     ),
                 )));
                 let vc = UrlAssetReference::new(
                     self.origin,
                     Request::parse(Value::new(src.to_string().into())),
-                    IssueSource::new(
+                    IssueSource::from_byte_offset(
                         Vc::upcast(self.source),
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
+                        issue_span.lo.0 as _,
+                        issue_span.hi.0 as _,
                     ),
                 );
                 self.urls.push((src.to_string(), vc));
