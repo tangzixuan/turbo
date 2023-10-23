@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::css::{
-    ast::{Rule, Stylesheet, Url},
+    ast::{AtRule, Rule, Stylesheet, Url},
     visit::{VisitMut, VisitMutWith},
 };
 use turbo_tasks::{Value, Vc};
@@ -77,7 +77,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
 impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
     fn visit_mut_rule(&mut self, rule: &mut Rule) {
         match rule {
-            CssRule::Import(i) => {
+            Rule::AtRule(box AtRule::Import(i)) => {
                 let src = &*i.url;
 
                 let issue_span = i.loc;

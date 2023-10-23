@@ -299,7 +299,6 @@ async fn process_content(
         stylesheet,
         references: Vc::cell(references),
         url_references: Vc::cell(url_references),
-        options: config,
     }
     .into())
 }
