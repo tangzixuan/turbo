@@ -72,9 +72,6 @@ pub enum CssWithPlaceholderResult {
 
         #[turbo_tasks(trace_ignore)]
         placeholders: HashMap<String, Url<'static>>,
-
-        #[turbo_tasks(trace_ignore)]
-        options: ParserOptions<'static, 'static>,
     },
     Unparseable,
     NotFound,
@@ -146,7 +143,6 @@ pub async fn process_css_with_placeholder(
                 url_references: *url_references,
                 placeholders: HashMap::new(),
                 stylesheet,
-                options: options.clone(),
             }
             .into())
         }
@@ -165,7 +161,6 @@ pub async fn finalize_css(
         CssWithPlaceholderResult::Ok {
             stylesheet,
             url_references,
-            options,
             ..
         } => {
             let mut stylesheet = stylesheet.clone();
