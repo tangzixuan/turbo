@@ -1,3 +1,12 @@
+use swc_core::{atoms::Atom, css::ast::Url};
+
+pub(crate) fn str_of_url(u: &Url) -> Atom {
+    match u.value.as_deref().unwrap() {
+        swc_core::css::ast::UrlValue::Str(s) => s.value.clone(),
+        swc_core::css::ast::UrlValue::Raw(s) => s.value.clone(),
+    }
+}
+
 pub fn stringify_js(str: &str) -> String {
     let mut escaped = String::with_capacity(str.len());
     for char in str.chars() {

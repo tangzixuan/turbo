@@ -17,7 +17,10 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::resolve::url_resolve;
 
-use crate::embed::{CssEmbed, CssEmbeddable};
+use crate::{
+    embed::{CssEmbed, CssEmbeddable},
+    util::str_of_url,
+};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
@@ -121,7 +124,7 @@ pub async fn resolve_url_reference(
 
 pub fn replace_url_references(ss: &mut Stylesheet, urls: &HashMap<String, String>) {
     let mut replacer = AssetReferenceReplacer { urls };
-    ss.visit(&mut replacer).unwrap();
+    ss.visit_mut_with(&mut replacer);
 }
 
 struct AssetReferenceReplacer<'a> {
@@ -132,7 +135,9 @@ impl<'i> VisitMut for AssetReferenceReplacer<'_> {
     fn visit_mut_url(&mut self, u: &mut Url) {
         u.visit_mut_children_with(self);
 
-        let Some(new) = self.urls.get(&*u.url) else {
+        let value = str_of_url(u);
+
+        let Some(new) = self.urls.get(&*value) else {
             return;
         };
         u.value = Some(Box::new(swc_core::css::ast::UrlValue::Str(Str {
