@@ -14,7 +14,7 @@ use lightningcss::{
     stylesheet::PrinterOptions,
     traits::ToCss,
 };
-use swc_core::css::ast::{LayerName, MediaQueryList};
+use swc_core::css::ast::{ImportPrelude, LayerName, MediaQueryList};
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -47,7 +47,7 @@ impl PartialEq for ImportAttributes {
 }
 
 impl ImportAttributes {
-    pub fn new_from_prelude(prelude: &ImportRule<'static>) -> Self {
+    pub fn new_from_prelude(prelude: &ImportPrelude) -> Self {
         let layer_name = prelude.layer.clone().flatten();
 
         let supports = prelude.supports.clone();

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::css::{
-    ast::{AtRule, AtRulePrelude, Rule, Stylesheet, Url},
+    ast::{AtRule, AtRulePrelude, ImportHref, Rule, Stylesheet, Url},
     visit::{VisitMut, VisitMutWith},
 };
 use turbo_tasks::{Value, Vc};
@@ -81,14 +81,17 @@ impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
                 prelude: Some(box AtRulePrelude::ImportPrelude(i)),
                 ..
             }) => {
-                let src = &*i.href;
+                let src = match &*i.href {
+                    ImportHref::Url(u) => str_of_url(u),
+                    ImportHref::Str(s) => s.value,
+                };
 
                 let issue_span = i.span;
 
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     self.origin,
                     Request::parse(Value::new(src.to_string().into())),
-                    ImportAttributes::new_from_prelude(&i.clone().into_owned()).into(),
+                    ImportAttributes::new_from_prelude(&i.clone()).into(),
                     IssueSource::from_byte_offset(
                         Vc::upcast(self.source),
                         issue_span.lo.0 as _,
