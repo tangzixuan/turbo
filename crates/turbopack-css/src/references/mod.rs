@@ -81,9 +81,9 @@ impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
                 prelude: Some(box AtRulePrelude::ImportPrelude(i)),
                 ..
             }) => {
-                let src = &*i.url;
+                let src = &*i.href;
 
-                let issue_span = i.loc;
+                let issue_span = i.span;
 
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     self.origin,

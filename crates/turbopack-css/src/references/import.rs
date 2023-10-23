@@ -14,6 +14,7 @@ use lightningcss::{
     stylesheet::PrinterOptions,
     traits::ToCss,
 };
+use swc_core::css::ast::{LayerName, MediaQueryList};
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -32,11 +33,11 @@ use crate::{
 #[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
 pub struct ImportAttributes {
     #[turbo_tasks(trace_ignore)]
-    pub layer_name: Option<LayerName<'static>>,
+    pub layer_name: Option<LayerName>,
     #[turbo_tasks(trace_ignore)]
-    pub supports: Option<SupportsCondition<'static>>,
+    pub supports: Option<SupportsCondition>,
     #[turbo_tasks(trace_ignore)]
-    pub media: MediaList<'static>,
+    pub media: MediaQueryList,
 }
 
 impl PartialEq for ImportAttributes {
