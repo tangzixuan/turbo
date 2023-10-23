@@ -46,7 +46,7 @@ pub fn analyze_references(
     let mut urls = Vec::new();
 
     let mut visitor = ModuleReferencesVisitor::new(source, origin, &mut references, &mut urls);
-    stylesheet.visit(&mut visitor).unwrap();
+    stylesheet.visit_mut_with(&mut visitor);
 
     Ok((references, urls))
 }

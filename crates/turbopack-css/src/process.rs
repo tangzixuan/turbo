@@ -43,9 +43,6 @@ pub enum ParseCssResult {
         references: Vc<ModuleReferences>,
 
         url_references: Vc<UnresolvedUrlReferences>,
-
-        #[turbo_tasks(trace_ignore)]
-        options: ParserOptions<'static, 'static>,
     },
     Unparseable,
     NotFound,
@@ -124,9 +121,8 @@ pub async fn process_css_with_placeholder(
             stylesheet,
             references,
             url_references,
-            options,
         } => {
-            let stylesheet = stylesheet_into_static(stylesheet, options.clone());
+            let stylesheet = stylesheet.clone();
 
             let result = stylesheet.to_css(PrinterOptions {
                 analyze_dependencies: Some(DependencyOptions {
@@ -172,7 +168,7 @@ pub async fn finalize_css(
             options,
             ..
         } => {
-            let mut stylesheet = stylesheet_into_static(stylesheet, options.clone());
+            let mut stylesheet = stylesheet.clone();
 
             let url_references = *url_references;
 
@@ -295,7 +291,7 @@ async fn process_content(
         // Safety: Actual lifetime of the config is 'static
         transmute::<ParserOptions, ParserOptions<'static, 'static>>(config)
     };
-    let mut stylesheet = stylesheet_into_static(&stylesheet, config.clone());
+    let mut stylesheet = stylesheet.clone();
 
     let (references, url_references) = analyze_references(&mut stylesheet, source, origin)?;
 
