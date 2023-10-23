@@ -1,5 +1,8 @@
 use anyhow::Result;
-use swc_core::css::ast::Rule;
+use swc_core::css::{
+    ast::{Rule, Stylesheet, Url},
+    visit::{VisitMut, VisitMutWith},
+};
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
@@ -68,8 +71,8 @@ impl<'a> ModuleReferencesVisitor<'a> {
     }
 }
 
-impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
-    fn visit_rule(&mut self, rule: &mut Rule) {
+impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
+    fn visit_mut_rule(&mut self, rule: &mut Rule) {
         match rule {
             CssRule::Import(i) => {
                 let src = &*i.url;
@@ -117,7 +120,7 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
         }
     }
 
-    fn visit_url(&mut self, u: &mut Url) {
+    fn visit_mut_url(&mut self, u: &mut Url) {
         let src = &*u.url;
 
         // ignore internal urls like `url(#noiseFilter)`
@@ -145,7 +148,7 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
             self.urls.push((u.url.to_string(), vc));
         }
 
-        u.visit_children(self);
+        u.visit_mut_children_with(self);
     }
 }
 

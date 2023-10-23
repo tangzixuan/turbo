@@ -1,9 +1,9 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use swc_core::css::{
-    ast::{Stylesheet, Url},
-    visit::VisitMut,
+    ast::{Str, Stylesheet, Url},
+    visit::{VisitMut, VisitMutWith},
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
@@ -130,10 +130,15 @@ struct AssetReferenceReplacer<'a> {
 
 impl<'i> VisitMut for AssetReferenceReplacer<'_> {
     fn visit_mut_url(&mut self, u: &mut Url) {
-        u.visit_mut_children_with(self)?;
+        u.visit_mut_children_with(self);
 
-        if let Some(new) = self.urls.get(&*u.url) {
-            u.url = new.clone().into();
-        }
+        let Some(new) = self.urls.get(&*u.url) else {
+            return;
+        };
+        u.value = Some(Box::new(swc_core::css::ast::UrlValue::Str(Str {
+            span: u.span,
+            value: new.clone().into(),
+            raw: None,
+        })));
     }
 }

@@ -10,7 +10,7 @@ use lightningcss::{
     values::url::Url,
 };
 use smallvec::smallvec;
-use swc_core::base::sourcemap::SourceMapBuilder;
+use swc_core::{base::sourcemap::SourceMapBuilder, css::ast::Stylesheet};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -23,7 +23,6 @@ use turbopack_core::{
 };
 
 use crate::{
-    lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
         url::{replace_url_references, resolve_url_reference, UrlAssetReference},
