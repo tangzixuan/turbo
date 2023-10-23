@@ -1885,7 +1885,6 @@ dependencies = [
  "dtoa-short",
  "itoa",
  "phf",
- "serde",
  "smallvec",
 ]
 
@@ -5000,7 +4999,6 @@ dependencies = [
  "phf",
  "phf_codegen",
  "precomputed-hash",
- "serde",
  "smallvec",
  "static-self",
 ]
@@ -9901,9 +9899,7 @@ dependencies = [
  "async-trait",
  "indexmap 1.9.3",
  "indoc",
- "lightningcss",
  "once_cell",
- "parcel_selectors",
  "parcel_sourcemap",
  "regex",
  "serde",
