@@ -18,9 +18,12 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
-use crate::references::{
-    import::{ImportAssetReference, ImportAttributes},
-    url::UrlAssetReference,
+use crate::{
+    references::{
+        import::{ImportAssetReference, ImportAttributes},
+        url::UrlAssetReference,
+    },
+    util::str_of_url,
 };
 
 pub(crate) mod compose;
@@ -116,36 +119,30 @@ impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
                 res
             }
 
-            _ => rule.visit_children(self),
+            _ => rule.visit_mut_children_with(self),
         }
     }
 
     fn visit_mut_url(&mut self, u: &mut Url) {
-        let src = &*u.url;
+        let src = &*str_of_url(u);
 
         // ignore internal urls like `url(#noiseFilter)`
         // ignore server-relative urls like `url(/foo)`
         if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
-            let issue_span = u.loc;
+            let issue_span = u.span;
 
             let vc = UrlAssetReference::new(
                 self.origin,
                 Request::parse(Value::new(src.to_string().into())),
-                IssueSource::new(
+                IssueSource::from_byte_offset(
                     Vc::upcast(self.source),
-                    SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
-                    },
-                    SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
-                    },
+                    issue_span.lo.0 as _,
+                    issue_span.hi.0 as _,
                 ),
             );
 
             self.references.push(Vc::upcast(vc));
-            self.urls.push((u.url.to_string(), vc));
+            self.urls.push((str_of_url(u).to_string(), vc));
         }
 
         u.visit_mut_children_with(self);
