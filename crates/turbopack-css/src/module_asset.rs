@@ -3,7 +3,6 @@ use std::{fmt::Write, iter::once, sync::Arc};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_tasks::{vdbg, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;

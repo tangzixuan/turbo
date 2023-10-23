@@ -1,13 +1,5 @@
-use std::convert::Infallible;
-
 use anyhow::Result;
-use lightningcss::{
-    rules::CssRule,
-    stylesheet::StyleSheet,
-    traits::IntoOwned,
-    values::url::Url,
-    visitor::{Visit, Visitor},
-};
+use swc_core::css::ast::Rule;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
@@ -40,7 +32,7 @@ pub type AnalyzedRefs = (
 
 /// Returns `(all_references, urls)`.
 pub fn analyze_references(
-    stylesheet: &mut StyleSheet<'static, 'static>,
+    stylesheet: &mut Stylesheet,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
 ) -> Result<AnalyzedRefs> {
@@ -77,13 +69,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
 }
 
 impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
-    type Error = Infallible;
-
-    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
-        lightningcss::visitor::VisitTypes::all()
-    }
-
-    fn visit_rule(&mut self, rule: &mut CssRule) -> std::result::Result<(), Self::Error> {
+    fn visit_rule(&mut self, rule: &mut Rule) {
         match rule {
             CssRule::Import(i) => {
                 let src = &*i.url;
@@ -131,7 +117,7 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
         }
     }
 
-    fn visit_url(&mut self, u: &mut Url) -> std::result::Result<(), Self::Error> {
+    fn visit_url(&mut self, u: &mut Url) {
         let src = &*u.url;
 
         // ignore internal urls like `url(#noiseFilter)`
@@ -159,9 +145,7 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
             self.urls.push((u.url.to_string(), vc));
         }
 
-        u.visit_children(self)?;
-
-        Ok(())
+        u.visit_children(self);
     }
 }
 

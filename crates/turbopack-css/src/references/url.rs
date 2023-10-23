@@ -1,11 +1,9 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use anyhow::Result;
-use lightningcss::{
-    stylesheet::StyleSheet,
-    values::url::Url,
-    visit_types,
-    visitor::{Visit, Visitor},
+use swc_core::css::{
+    ast::{Stylesheet, Url},
+    visit::VisitMut,
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
@@ -121,10 +119,7 @@ pub async fn resolve_url_reference(
     Ok(Vc::cell(None))
 }
 
-pub fn replace_url_references(
-    ss: &mut StyleSheet<'static, 'static>,
-    urls: &HashMap<String, String>,
-) {
+pub fn replace_url_references(ss: &mut Stylesheet, urls: &HashMap<String, String>) {
     let mut replacer = AssetReferenceReplacer { urls };
     ss.visit(&mut replacer).unwrap();
 }
@@ -133,20 +128,12 @@ struct AssetReferenceReplacer<'a> {
     urls: &'a HashMap<String, String>,
 }
 
-impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
-    type Error = Infallible;
-
-    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
-        visit_types!(URLS)
-    }
-
-    fn visit_url(&mut self, u: &mut Url) -> std::result::Result<(), Self::Error> {
-        u.visit_children(self)?;
+impl<'i> VisitMut for AssetReferenceReplacer<'_> {
+    fn visit_mut_url(&mut self, u: &mut Url) {
+        u.visit_mut_children_with(self)?;
 
         if let Some(new) = self.urls.get(&*u.url) {
             u.url = new.clone().into();
         }
-
-        Ok(())
     }
 }

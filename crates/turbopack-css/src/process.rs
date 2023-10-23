@@ -39,7 +39,7 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 pub enum ParseCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheet<'static, 'static>,
+        stylesheet: Stylesheet,
 
         references: Vc<ModuleReferences>,
 
@@ -62,7 +62,7 @@ impl PartialEq for ParseCssResult {
 pub enum CssWithPlaceholderResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheet<'static, 'static>,
+        stylesheet: Stylesheet,
 
         references: Vc<ModuleReferences>,
 
