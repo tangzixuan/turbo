@@ -69,9 +69,6 @@ pub enum CssWithPlaceholderResult {
         exports: Option<IndexMap<String, CssModuleExport>>,
 
         #[turbo_tasks(trace_ignore)]
-        dependencies: Option<Vec<Dependency>>,
-
-        #[turbo_tasks(trace_ignore)]
         placeholders: HashMap<String, Url>,
     },
     Unparseable,
@@ -275,7 +272,7 @@ async fn process_content(
         ..Default::default()
     };
 
-    let stylesheet = match StyleSheet::parse(&code, config.clone()) {
+    let stylesheet = match Stylesheet::parse(&code, config.clone()) {
         Ok(stylesheet) => stylesheet,
         Err(_e) => {
             // TODO(kdy1): Report errors
