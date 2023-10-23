@@ -15,7 +15,6 @@ use turbopack_core::{
         ModuleResolveResult,
     },
     source::Source,
-    source_pos::SourcePos,
 };
 
 use crate::{

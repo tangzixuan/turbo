@@ -1,20 +1,5 @@
 use anyhow::Result;
-use lightningcss::{
-    media_query::MediaList,
-    printer::Printer,
-    properties::custom::TokenList,
-    rules::{
-        import::ImportRule,
-        layer::{LayerBlockRule, LayerName},
-        media::MediaRule,
-        supports::{SupportsCondition, SupportsRule},
-        unknown::UnknownAtRule,
-        CssRule, CssRuleList, Location,
-    },
-    stylesheet::PrinterOptions,
-    traits::ToCss,
-};
-use swc_core::css::ast::{ImportPrelude, LayerName, MediaQueryList};
+use swc_core::css::ast::{ImportPrelude, LayerName, MediaQueryList, SupportsCondition};
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
