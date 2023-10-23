@@ -5,7 +5,11 @@ use indexmap::IndexMap;
 use smallvec::smallvec;
 use swc_core::{
     base::sourcemap::SourceMapBuilder,
-    css::ast::{Stylesheet, Url},
+    css::{
+        ast::{Stylesheet, Url},
+        compat::feature::Features,
+        visit::VisitMutWith,
+    },
 };
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
@@ -174,19 +178,20 @@ pub async fn finalize_css(
 
             replace_url_references(&mut stylesheet, &url_map);
 
+            stylesheet.visit_mut_with(&mut swc_core::css::compat::compiler::Compiler::new(
+                swc_core::css::compat::compiler::Config {
+                    process: Features::NESTING,
+                },
+            ));
+
             let mut srcmap = parcel_sourcemap::SourceMap::new("");
             let result = stylesheet.to_css(PrinterOptions {
                 source_map: Some(&mut srcmap),
                 analyze_dependencies: Some(DependencyOptions {
                     remove_imports: true,
                 }),
-                targets: Targets {
-                    include: Features::Nesting,
-                    ..Default::default()
-                },
                 ..Default::default()
             })?;
-            srcmap.add_sources(stylesheet.sources.clone());
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
