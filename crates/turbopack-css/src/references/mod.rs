@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::css::{
-    ast::{AtRule, Rule, Stylesheet, Url},
+    ast::{AtRule, AtRulePrelude, Rule, Stylesheet, Url},
     visit::{VisitMut, VisitMutWith},
 };
 use turbo_tasks::{Value, Vc};
@@ -77,7 +77,10 @@ impl<'a> ModuleReferencesVisitor<'a> {
 impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
     fn visit_mut_rule(&mut self, rule: &mut Rule) {
         match rule {
-            Rule::AtRule(box AtRule::Import(i)) => {
+            Rule::AtRule(box AtRule {
+                prelude: Some(box AtRulePrelude::ImportPrelude(i)),
+                ..
+            }) => {
                 let src = &*i.url;
 
                 let issue_span = i.loc;
@@ -115,8 +118,7 @@ impl<'a> VisitMut for ModuleReferencesVisitor<'a> {
                 );
                 self.urls.push((src.to_string(), vc));
 
-                let res = i.visit_children(self);
-                res
+                i.visit_mut_children_with(self);
             }
 
             _ => rule.visit_mut_children_with(self),
