@@ -14,6 +14,7 @@ mod module_asset;
 pub(crate) mod parse;
 pub(crate) mod process;
 pub(crate) mod references;
+mod types;
 pub(crate) mod util;
 
 pub use asset::CssModuleAsset;

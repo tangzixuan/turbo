@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::transmute};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -27,6 +27,7 @@ use crate::{
         analyze_references,
         url::{replace_url_references, resolve_url_reference, UrlAssetReference},
     },
+    types::{CssModuleExport, CssModuleExports},
     CssModuleAssetType,
 };
 

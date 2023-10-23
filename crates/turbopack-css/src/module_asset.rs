@@ -30,6 +30,7 @@ use turbopack_ecmascript::{
 use crate::{
     process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
+    types::CssModuleReference,
 };
 
 #[turbo_tasks::function]
