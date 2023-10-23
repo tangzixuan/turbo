@@ -1,13 +1,18 @@
 use anyhow::Result;
-use swc_core::{
-    common::DUMMY_SP,
-    css::{
-        ast::*,
-        codegen::{
-            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-            CodeGenerator, Emit,
-        },
+use lightningcss::{
+    media_query::MediaList,
+    printer::Printer,
+    properties::custom::TokenList,
+    rules::{
+        import::ImportRule,
+        layer::{LayerBlockRule, LayerName},
+        media::MediaRule,
+        supports::{SupportsCondition, SupportsRule},
+        unknown::UnknownAtRule,
+        CssRule, CssRuleList, Location,
     },
+    stylesheet::PrinterOptions,
+    traits::ToCss,
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
@@ -21,74 +26,32 @@ use turbopack_core::{
 use crate::{
     chunk::CssImport,
     code_gen::{CodeGenerateable, CodeGeneration},
-    references::{css_resolve, AstPath},
+    references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new")]
+#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
 pub struct ImportAttributes {
     #[turbo_tasks(trace_ignore)]
-    pub layer_name: Option<LayerName>,
+    pub layer_name: Option<LayerName<'static>>,
     #[turbo_tasks(trace_ignore)]
-    pub supports: Option<SupportsCondition>,
+    pub supports: Option<SupportsCondition<'static>>,
     #[turbo_tasks(trace_ignore)]
-    pub media: Option<Vec<MediaQuery>>,
+    pub media: MediaList<'static>,
+}
+
+impl PartialEq for ImportAttributes {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
 }
 
 impl ImportAttributes {
-    pub fn new_from_prelude(prelude: &ImportPrelude) -> Self {
-        let layer_name = prelude.layer_name.as_ref().map(|l| match l {
-            box ImportLayerName::Ident(_) => LayerName {
-                span: DUMMY_SP,
-                name: vec![],
-            },
-            box ImportLayerName::Function(f) => {
-                assert_eq!(f.value.len(), 1);
-                assert!(matches!(&f.value[0], ComponentValue::LayerName(_)));
-                if let ComponentValue::LayerName(layer_name) = &f.value[0] {
-                    *layer_name.clone()
-                } else {
-                    unreachable!()
-                }
-            }
-        });
+    pub fn new_from_prelude(prelude: &ImportRule<'static>) -> Self {
+        let layer_name = prelude.layer.clone().flatten();
 
-        let (supports, media) = prelude
-            .import_conditions
-            .as_ref()
-            .map(|c| {
-                let supports = if let Some(supports) = &c.supports {
-                    let v = supports.value.iter().find(|v| {
-                        matches!(
-                            v,
-                            ComponentValue::SupportsCondition(..) | ComponentValue::Declaration(..)
-                        )
-                    });
+        let supports = prelude.supports.clone();
 
-                    if let Some(supports) = v {
-                        match &supports {
-                            ComponentValue::SupportsCondition(s) => Some(*s.clone()),
-                            ComponentValue::Declaration(d) => Some(SupportsCondition {
-                                span: DUMMY_SP,
-                                conditions: vec![SupportsConditionType::SupportsInParens(
-                                    SupportsInParens::Feature(SupportsFeature::Declaration(
-                                        d.clone(),
-                                    )),
-                                )],
-                            }),
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                let media = c.media.as_ref().map(|m| m.queries.clone());
-
-                (supports, media)
-            })
-            .unwrap_or_else(|| (None, None));
+        let media = prelude.media.clone();
 
         Self {
             layer_name,
@@ -98,82 +61,59 @@ impl ImportAttributes {
     }
 
     pub fn print_block(&self) -> Result<(String, String)> {
-        fn token(token: Token) -> TokenAndSpan {
-            TokenAndSpan {
-                span: DUMMY_SP,
-                token,
-            }
-        }
-
         // something random that's never gonna be in real css
-        let mut rule = Rule::ListOfComponentValues(Box::new(ListOfComponentValues {
-            span: DUMMY_SP,
-            children: vec![ComponentValue::PreservedToken(Box::new(token(
-                Token::String {
-                    value: Default::default(),
-                    raw: r#""""__turbopack_placeholder__""""#.into(),
-                },
-            )))],
-        }));
+        // Box::new(ListOfComponentValues {
+        //     span: DUMMY_SP,
+        //     children: vec![ComponentValue::PreservedToken(Box::new(token(
+        //         Token::String {
+        //             value: Default::default(),
+        //             raw: r#""""__turbopack_placeholder__""""#.into(),
+        //         },
+        //     )))],
+        // })
 
-        fn at_rule(name: &str, prelude: AtRulePrelude, inner_rule: Rule) -> Rule {
-            Rule::AtRule(Box::new(AtRule {
-                span: DUMMY_SP,
-                name: AtRuleName::Ident(Ident {
-                    span: DUMMY_SP,
-                    value: name.into(),
-                    raw: None,
-                }),
-                prelude: Some(Box::new(prelude)),
-                block: Some(SimpleBlock {
-                    span: DUMMY_SP,
-                    name: token(Token::LBrace),
-                    value: vec![ComponentValue::from(inner_rule)],
-                }),
-            }))
+        let default_loc = Location {
+            source_index: 0,
+            line: 0,
+            column: 0,
+        };
+
+        let mut rule: CssRule = CssRule::Unknown(UnknownAtRule {
+            name: r#""""__turbopack_placeholder__""""#.into(),
+            prelude: TokenList(vec![]),
+            block: None,
+            loc: default_loc,
+        });
+
+        if !self.media.media_queries.is_empty() {
+            rule = CssRule::Media(MediaRule {
+                query: self.media.clone(),
+                rules: CssRuleList(vec![rule]),
+                loc: default_loc,
+            })
         }
 
-        if let Some(media) = &self.media {
-            rule = at_rule(
-                "media",
-                AtRulePrelude::MediaPrelude(MediaQueryList {
-                    span: DUMMY_SP,
-                    queries: media.clone(),
-                }),
-                rule,
-            );
-        }
         if let Some(supports) = &self.supports {
-            rule = at_rule(
-                "supports",
-                AtRulePrelude::SupportsPrelude(supports.clone()),
-                rule,
-            );
+            rule = CssRule::Supports(SupportsRule {
+                condition: supports.clone(),
+                rules: CssRuleList(vec![rule]),
+                loc: default_loc,
+            })
         }
         if let Some(layer_name) = &self.layer_name {
-            rule = at_rule(
-                "layer",
-                AtRulePrelude::LayerPrelude(LayerPrelude::Name(layer_name.clone())),
-                rule,
-            );
+            rule = CssRule::LayerBlock(LayerBlockRule {
+                loc: default_loc,
+                name: Some(layer_name.clone()),
+                rules: CssRuleList(vec![rule]),
+            });
         }
 
         let mut output = String::new();
-        let mut code_gen = CodeGenerator::new(
-            BasicCssWriter::new(
-                &mut output,
-                None,
-                BasicCssWriterConfig {
-                    indent_width: 0,
-                    ..Default::default()
-                },
-            ),
-            Default::default(),
-        );
-        code_gen.emit(&rule)?;
+        let mut printer = Printer::new(&mut output, PrinterOptions::default());
+        rule.to_css(&mut printer)?;
 
         let (open, close) = output
-            .split_once(r#""""__turbopack_placeholder__""""#)
+            .split_once(r#"@"""__turbopack_placeholder__""""#)
             .unwrap();
 
         Ok((open.trim().into(), close.trim().into()))
@@ -185,7 +125,6 @@ impl ImportAttributes {
 pub struct ImportAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
     pub attributes: Vc<ImportAttributes>,
     pub issue_source: Vc<IssueSource>,
 }
@@ -196,14 +135,12 @@ impl ImportAssetReference {
     pub fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
-        path: Vc<AstPath>,
         attributes: Vc<ImportAttributes>,
         issue_source: Vc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
             request,
-            path,
             attributes,
             issue_source,
         })
@@ -254,11 +191,7 @@ impl CodeGenerateable for ImportAssetReference {
             ))))
         }
 
-        Ok(CodeGeneration {
-            visitors: vec![],
-            imports,
-        }
-        .into())
+        Ok(CodeGeneration { imports }.into())
     }
 }
 

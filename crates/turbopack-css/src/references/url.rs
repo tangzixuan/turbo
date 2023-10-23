@@ -1,7 +1,11 @@
+use std::{collections::HashMap, convert::Infallible};
+
 use anyhow::Result;
-use swc_core::{
-    common::DUMMY_SP,
-    css::ast::{Str, UrlValue},
+use lightningcss::{
+    stylesheet::StyleSheet,
+    values::url::Url,
+    visit_types,
+    visitor::{Visit, Visitor},
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
@@ -15,12 +19,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::resolve::url_resolve;
 
-use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
-    embed::{CssEmbed, CssEmbeddable},
-    references::AstPath,
-};
+use crate::embed::{CssEmbed, CssEmbeddable};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
@@ -33,7 +32,6 @@ pub enum ReferencedAsset {
 pub struct UrlAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
     pub issue_source: Vc<IssueSource>,
 }
 
@@ -43,13 +41,11 @@ impl UrlAssetReference {
     pub fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
-        path: Vc<AstPath>,
         issue_source: Vc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,
             request,
-            path,
             issue_source,
         })
     }
@@ -97,47 +93,60 @@ impl ValueToString for UrlAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for UrlAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
-        // TODO(WEB-662) This is not the correct way to get the current chunk path. It
-        // currently works as all chunks are in the same directory.
-        let chunk_path = chunking_context.chunk_path(
-            AssetIdent::from_path(this.origin.origin_path()),
-            ".css".to_string(),
-        );
-        let context_path = chunk_path.parent().await?;
+#[turbo_tasks::function]
+pub async fn resolve_url_reference(
+    url: Vc<UrlAssetReference>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<Option<String>>> {
+    let this = url.await?;
+    // TODO(WEB-662) This is not the correct way to get the current chunk path. It
+    // currently works as all chunks are in the same directory.
+    let chunk_path = chunking_context.chunk_path(
+        AssetIdent::from_path(this.origin.origin_path()),
+        ".css".to_string(),
+    );
+    let context_path = chunk_path.parent().await?;
 
-        let mut visitors = Vec::new();
+    if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
+        // TODO(WEB-662) This is not the correct way to get the path of the asset.
+        // `asset` is on module-level, but we need the output-level asset instead.
+        let path = asset.ident().path().await?;
+        let relative_path = context_path
+            .get_relative_path_to(&path)
+            .unwrap_or_else(|| format!("/{}", path.path));
 
-        if let ReferencedAsset::Some(asset) = &*self.get_referenced_asset(chunking_context).await? {
-            // TODO(WEB-662) This is not the correct way to get the path of the asset.
-            // `asset` is on module-level, but we need the output-level asset instead.
-            let path = asset.ident().path().await?;
-            let relative_path = context_path
-                .get_relative_path_to(&path)
-                .unwrap_or_else(|| format!("/{}", path.path));
+        return Ok(Vc::cell(Some(relative_path)));
+    }
 
-            visitors.push(
-                create_visitor!((&this.path.await?), visit_mut_url(u: &mut Url) {
-                    u.value = Some(Box::new(UrlValue::Str(Str {
-                        span: DUMMY_SP,
-                        value: relative_path.as_str().into(),
-                        raw: None,
-                    })))
-                }),
-            );
+    Ok(Vc::cell(None))
+}
+
+pub fn replace_url_references(
+    ss: &mut StyleSheet<'static, 'static>,
+    urls: &HashMap<String, String>,
+) {
+    let mut replacer = AssetReferenceReplacer { urls };
+    ss.visit(&mut replacer).unwrap();
+}
+
+struct AssetReferenceReplacer<'a> {
+    urls: &'a HashMap<String, String>,
+}
+
+impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
+    type Error = Infallible;
+
+    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
+        visit_types!(URLS)
+    }
+
+    fn visit_url(&mut self, u: &mut Url) -> std::result::Result<(), Self::Error> {
+        u.visit_children(self)?;
+
+        if let Some(new) = self.urls.get(&*u.url) {
+            u.url = new.clone().into();
         }
 
-        Ok(CodeGeneration {
-            visitors,
-            imports: vec![],
-        }
-        .into())
+        Ok(())
     }
 }

@@ -1,19 +1,17 @@
+use std::convert::Infallible;
+
 use anyhow::Result;
-use swc_core::{
-    common::{
-        errors::{Handler, HANDLER},
-        source_map::Pos,
-        Globals, Spanned, GLOBALS,
-    },
-    css::{
-        ast::{ImportHref, ImportPrelude, Url, UrlValue},
-        visit::{AstNodePath, AstParentKind, VisitAstPath, VisitWithPath},
-    },
+use lightningcss::{
+    rules::CssRule,
+    stylesheet::StyleSheet,
+    traits::IntoOwned,
+    values::url::Url,
+    visitor::{Visit, Visitor},
 };
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
-    reference::{ModuleReference, ModuleReferences},
+    reference::ModuleReference,
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error,
@@ -22,16 +20,12 @@ use turbopack_core::{
         ModuleResolveResult,
     },
     source::Source,
+    source_pos::SourcePos,
 };
-use turbopack_swc_utils::emitter::IssueEmitter;
 
-use crate::{
-    parse::{parse_css, ParseCssResult},
-    references::{
-        import::{ImportAssetReference, ImportAttributes},
-        url::UrlAssetReference,
-    },
-    CssInputTransforms, CssModuleAssetType,
+use crate::references::{
+    import::{ImportAssetReference, ImportAttributes},
+    url::UrlAssetReference,
 };
 
 pub(crate) mod compose;
@@ -39,49 +33,31 @@ pub(crate) mod import;
 pub(crate) mod internal;
 pub(crate) mod url;
 
-#[turbo_tasks::function]
-pub async fn analyze_css_stylesheet(
+pub type AnalyzedRefs = (
+    Vec<Vc<Box<dyn ModuleReference>>>,
+    Vec<(String, Vc<UrlAssetReference>)>,
+);
+
+/// Returns `(all_references, urls)`.
+pub fn analyze_references(
+    stylesheet: &mut StyleSheet<'static, 'static>,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    ty: CssModuleAssetType,
-    transforms: Vc<CssInputTransforms>,
-) -> Result<Vc<ModuleReferences>> {
+) -> Result<AnalyzedRefs> {
     let mut references = Vec::new();
+    let mut urls = Vec::new();
 
-    let parsed = parse_css(source, ty, transforms).await?;
+    let mut visitor = ModuleReferencesVisitor::new(source, origin, &mut references, &mut urls);
+    stylesheet.visit(&mut visitor).unwrap();
 
-    if let ParseCssResult::Ok {
-        stylesheet,
-        source_map,
-        ..
-    } = &*parsed
-    {
-        let handler = Handler::with_emitter(
-            true,
-            false,
-            Box::new(IssueEmitter {
-                source,
-                source_map: source_map.clone(),
-                title: None,
-            }),
-        );
-        let globals = Globals::new();
-        HANDLER.set(&handler, || {
-            GLOBALS.set(&globals, || {
-                // TODO migrate to effects
-                let mut visitor = ModuleReferencesVisitor::new(source, origin, &mut references);
-                stylesheet.visit_with_path(&mut visitor, &mut Default::default());
-            })
-        });
-    }
-    Ok(Vc::cell(references))
+    Ok((references, urls))
 }
 
 struct ModuleReferencesVisitor<'a> {
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
-    is_import: bool,
+    urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -89,86 +65,103 @@ impl<'a> ModuleReferencesVisitor<'a> {
         source: Vc<Box<dyn Source>>,
         origin: Vc<Box<dyn ResolveOrigin>>,
         references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
+        urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
     ) -> Self {
         Self {
             source,
             origin,
             references,
-            is_import: false,
+            urls,
         }
     }
 }
 
-fn url_string(u: &Url) -> &str {
-    match &u.value {
-        None => {
-            println!("invalid css url: no value");
-            ""
-        }
-        Some(box UrlValue::Str(s)) => s.value.as_ref(),
-        Some(box UrlValue::Raw(r)) => r.value.as_ref(),
-    }
-}
+impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
+    type Error = Infallible;
 
-pub fn as_parent_path(ast_path: &AstNodePath<'_>) -> Vec<AstParentKind> {
-    ast_path.iter().map(|n| n.kind()).collect()
-}
-
-impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
-    fn visit_import_prelude<'ast: 'r, 'r>(
-        &mut self,
-        i: &'ast ImportPrelude,
-        ast_path: &mut AstNodePath<'r>,
-    ) {
-        let src = match &i.href {
-            box ImportHref::Str(s) => s.value.as_ref(),
-            // covered by `visit_url` below
-            box ImportHref::Url(ref u) => url_string(u),
-        };
-
-        let issue_span = i.href.span();
-
-        self.references.push(Vc::upcast(ImportAssetReference::new(
-            self.origin,
-            Request::parse(Value::new(src.to_string().into())),
-            Vc::cell(as_parent_path(ast_path)),
-            ImportAttributes::new_from_prelude(i).into(),
-            IssueSource::from_byte_offset(
-                Vc::upcast(self.source),
-                issue_span.lo.to_usize(),
-                issue_span.hi.to_usize(),
-            ),
-        )));
-
-        self.is_import = true;
-        i.visit_children_with_path(self, ast_path);
-        self.is_import = false;
+    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
+        lightningcss::visitor::VisitTypes::all()
     }
 
-    fn visit_url<'ast: 'r, 'r>(&mut self, u: &'ast Url, ast_path: &mut AstNodePath<'r>) {
-        if self.is_import {
-            return u.visit_children_with_path(self, ast_path);
-        }
+    fn visit_rule(&mut self, rule: &mut CssRule) -> std::result::Result<(), Self::Error> {
+        match rule {
+            CssRule::Import(i) => {
+                let src = &*i.url;
 
-        let src = url_string(u);
+                let issue_span = i.loc;
+
+                self.references.push(Vc::upcast(ImportAssetReference::new(
+                    self.origin,
+                    Request::parse(Value::new(src.to_string().into())),
+                    ImportAttributes::new_from_prelude(&i.clone().into_owned()).into(),
+                    IssueSource::new(
+                        Vc::upcast(self.source),
+                        SourcePos {
+                            line: issue_span.line as _,
+                            column: issue_span.column as _,
+                        },
+                        SourcePos {
+                            line: issue_span.line as _,
+                            column: issue_span.column as _,
+                        },
+                    ),
+                )));
+                let vc = UrlAssetReference::new(
+                    self.origin,
+                    Request::parse(Value::new(src.to_string().into())),
+                    IssueSource::new(
+                        Vc::upcast(self.source),
+                        SourcePos {
+                            line: issue_span.line as _,
+                            column: issue_span.column as _,
+                        },
+                        SourcePos {
+                            line: issue_span.line as _,
+                            column: issue_span.column as _,
+                        },
+                    ),
+                );
+                self.urls.push((src.to_string(), vc));
+
+                let res = i.visit_children(self);
+                res
+            }
+
+            _ => rule.visit_children(self),
+        }
+    }
+
+    fn visit_url(&mut self, u: &mut Url) -> std::result::Result<(), Self::Error> {
+        let src = &*u.url;
 
         // ignore internal urls like `url(#noiseFilter)`
         // ignore server-relative urls like `url(/foo)`
         if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
-            let issue_span = u.span;
-            self.references.push(Vc::upcast(UrlAssetReference::new(
+            let issue_span = u.loc;
+
+            let vc = UrlAssetReference::new(
                 self.origin,
                 Request::parse(Value::new(src.to_string().into())),
-                Vc::cell(as_parent_path(ast_path)),
-                IssueSource::from_byte_offset(
+                IssueSource::new(
                     Vc::upcast(self.source),
-                    issue_span.lo.to_usize(),
-                    issue_span.hi.to_usize(),
+                    SourcePos {
+                        line: issue_span.line as _,
+                        column: issue_span.column as _,
+                    },
+                    SourcePos {
+                        line: issue_span.line as _,
+                        column: issue_span.column as _,
+                    },
                 ),
-            )));
+            );
+
+            self.references.push(Vc::upcast(vc));
+            self.urls.push((u.url.to_string(), vc));
         }
 
-        u.visit_children_with_path(self, ast_path);
+        u.visit_children(self)?;
+
+        Ok(())
     }
 }
 
@@ -194,7 +187,3 @@ pub async fn css_resolve(
     )
     .await
 }
-
-// TODO enable serialization
-#[turbo_tasks::value(transparent, serialization = "none")]
-pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
