@@ -90,9 +90,6 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         exports: Option<CssModuleExports>,
 
-        #[turbo_tasks(trace_ignore)]
-        dependencies: Option<Vec<Dependency>>,
-
         source_map: Vc<ParseCssResultSourceMap>,
     },
     Unparseable,
@@ -135,7 +132,6 @@ pub async fn process_css_with_placeholder(
             });
 
             Ok(CssWithPlaceholderResult::Ok {
-                dependencies: result.dependencies,
                 exports,
                 references: *references,
                 url_references: *url_references,
@@ -193,7 +189,6 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                dependencies: result.dependencies,
                 exports: result.exports,
                 source_map: ParseCssResultSourceMap::new(srcmap).cell(),
             }
