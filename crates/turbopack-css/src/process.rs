@@ -2,15 +2,11 @@ use std::{collections::HashMap, mem::transmute};
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use lightningcss::{
-    css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
-    dependencies::{Dependency, DependencyOptions},
-    stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
-    targets::{Features, Targets},
-    values::url::Url,
-};
 use smallvec::smallvec;
-use swc_core::{base::sourcemap::SourceMapBuilder, css::ast::Stylesheet};
+use swc_core::{
+    base::sourcemap::SourceMapBuilder,
+    css::ast::{Stylesheet, Url},
+};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -71,7 +67,7 @@ pub enum CssWithPlaceholderResult {
         dependencies: Option<Vec<Dependency>>,
 
         #[turbo_tasks(trace_ignore)]
-        placeholders: HashMap<String, Url<'static>>,
+        placeholders: HashMap<String, Url>,
     },
     Unparseable,
     NotFound,
@@ -282,10 +278,6 @@ async fn process_content(
         }
     };
 
-    let config = unsafe {
-        // Safety: Actual lifetime of the config is 'static
-        transmute::<ParserOptions, ParserOptions<'static, 'static>>(config)
-    };
     let mut stylesheet = stylesheet.clone();
 
     let (references, url_references) = analyze_references(&mut stylesheet, source, origin)?;
