@@ -21,7 +21,7 @@ use crate::{
     package_manager::PackageManager,
 };
 
-pub struct PackageGraphBuilder<'a, T: PackageDiscovery> {
+pub struct PackageGraphBuilder<'a, T> {
     repo_root: &'a AbsoluteSystemPath,
     root_package_json: PackageJson,
     is_single_package: bool,
@@ -61,7 +61,7 @@ pub enum Error {
     Discovery(#[from] turborepo_discovery::Error),
 }
 
-impl<'a> PackageGraphBuilder<'a, LocalPackageDiscovery> {
+impl<'a> PackageGraphBuilder<'a, ()> {
     pub fn new(repo_root: &'a AbsoluteSystemPath, root_package_json: PackageJson) -> Self {
         Self {
             repo_root,
@@ -70,12 +70,12 @@ impl<'a> PackageGraphBuilder<'a, LocalPackageDiscovery> {
             package_manager: None,
             package_jsons: None,
             lockfile: None,
-            package_discovery: LocalPackageDiscovery::new(repo_root.to_owned()),
+            package_discovery: (), // unset
         }
     }
 }
 
-impl<'a, P: PackageDiscovery> PackageGraphBuilder<'a, P> {
+impl<'a, P> PackageGraphBuilder<'a, P> {
     pub fn with_single_package_mode(mut self, is_single: bool) -> Self {
         self.is_single_package = is_single;
         self
@@ -106,10 +106,7 @@ impl<'a, P: PackageDiscovery> PackageGraphBuilder<'a, P> {
     pub fn with_package_discovery<P2: PackageDiscovery>(
         self,
         discovery: P2,
-    ) -> PackageGraphBuilder<'a, P2>
-    where
-        P: PackageDiscovery,
-    {
+    ) -> PackageGraphBuilder<'a, P2> {
         PackageGraphBuilder {
             repo_root: self.repo_root,
             root_package_json: self.root_package_json,
@@ -120,7 +117,27 @@ impl<'a, P: PackageDiscovery> PackageGraphBuilder<'a, P> {
             package_discovery: discovery,
         }
     }
+}
 
+impl<'a> PackageGraphBuilder<'a, ()> {
+    /// Build the `PackageGraph` with the default package discovery strategy.
+    #[tracing::instrument(skip(self))]
+    pub async fn build_default(self) -> Result<PackageGraph, Error> {
+        let builder = PackageGraphBuilder {
+            package_discovery: LocalPackageDiscovery::new(self.repo_root.to_owned())?,
+            is_single_package: self.is_single_package,
+            lockfile: self.lockfile,
+            package_jsons: self.package_jsons,
+            package_manager: self.package_manager,
+            repo_root: self.repo_root,
+            root_package_json: self.root_package_json,
+        };
+        builder.build().await
+    }
+}
+
+impl<'a, T: PackageDiscovery> PackageGraphBuilder<'a, T> {
+    /// Build the `PackageGraph`.
     #[tracing::instrument(skip(self))]
     pub async fn build(self) -> Result<PackageGraph, Error> {
         let is_single_package = self.is_single_package;

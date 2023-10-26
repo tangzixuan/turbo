@@ -42,7 +42,7 @@ pub async fn run(base: &mut CommandBase, workspace: Option<&str>, json: bool) ->
 
     let package_graph = PackageGraph::builder(&base.repo_root, root_package_json)
         .with_package_manger(Some(package_manager))
-        .build()
+        .build_default()
         .await?;
 
     let config = base.config()?;

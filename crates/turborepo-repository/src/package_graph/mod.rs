@@ -89,7 +89,7 @@ impl PackageGraph {
     pub fn builder(
         repo_root: &AbsoluteSystemPath,
         root_package_json: PackageJson,
-    ) -> PackageGraphBuilder<LocalPackageDiscovery> {
+    ) -> PackageGraphBuilder<()> {
         PackageGraphBuilder::new(repo_root, root_package_json)
     }
 

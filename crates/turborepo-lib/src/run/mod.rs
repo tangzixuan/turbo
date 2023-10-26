@@ -203,7 +203,7 @@ impl<'a> Run<'a> {
             .with_single_package_mode(opts.run_opts.single_package)
             .with_package_discovery(FallbackPackageDiscovery::new(
                 daemon.as_mut().map(DaemonPackageDiscovery::new),
-                LocalPackageDiscovery::new(self.base.repo_root.clone()),
+                LocalPackageDiscovery::new(self.base.repo_root.clone()).unwrap(),
                 Duration::from_millis(10),
             ))
             .build()
@@ -453,11 +453,10 @@ impl<'a> Run<'a> {
 
         let is_single_package = opts.run_opts.single_package;
 
-        let mut pkg_dep_graph =
-            PackageGraph::builder(&self.base.repo_root, root_package_json.clone())
-                .with_single_package_mode(opts.run_opts.single_package)
-                .build()
-                .await?;
+        let mut pkg_dep_graph = PackageGraph::builder(&self.base.repo_root, root_package_json.clone())
+            .with_single_package_mode(opts.run_opts.single_package)
+            .build_default()
+            .await?;
 
         let root_turbo_json =
             TurboJson::load(&self.base.repo_root, &root_package_json, is_single_package)?;
