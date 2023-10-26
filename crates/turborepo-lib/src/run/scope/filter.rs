@@ -598,7 +598,7 @@ mod test {
 
     /// Make a project resolver with the provided dependencies. Extras is for
     /// packages that are not dependencies of any other package.
-    fn make_project<T: PackageChangeDetector>(
+    async fn make_project<T: PackageChangeDetector>(
         dependencies: &[(&str, &str)],
         extras: &[&str],
         package_inference: Option<PackageInference>,
@@ -651,6 +651,7 @@ mod test {
                 .with_package_jsons(Some(package_jsons))
                 .with_package_manger(Some(PackageManager::Pnpm6))
                 .build()
+                .await
                 .unwrap(),
         ));
 
@@ -872,7 +873,8 @@ mod test {
         &["project-0"] ;
         "infer single package from subdirectory"
     )]
-    fn filter(
+    #[tokio::test]
+    async fn filter(
         selectors: Vec<TargetSelector>,
         package_inference: Option<PackageInference>,
         expected: &[&str],
@@ -887,7 +889,8 @@ mod test {
             &["project-3", "project-5/packages/project-6"],
             package_inference,
             TestChangeDetector::new(&[]),
-        );
+        )
+        .await;
 
         let packages = resolver.get_filtered_packages(selectors).unwrap();
 
@@ -897,14 +900,15 @@ mod test {
         );
     }
 
-    #[test]
-    fn match_exact() {
+    #[tokio::test]
+    async fn match_exact() {
         let resolver = make_project(
             &[],
             &["packages/@foo/bar", "packages/bar"],
             None,
             TestChangeDetector::new(&[]),
-        );
+        )
+        .await;
         let packages = resolver
             .get_filtered_packages(vec![TargetSelector {
                 name_pattern: "bar".to_string(),
@@ -920,14 +924,15 @@ mod test {
         );
     }
 
-    #[test]
-    fn match_scoped_package() {
+    #[tokio::test]
+    async fn match_scoped_package() {
         let resolver = make_project(
             &[],
             &["packages/bar/@foo/bar"],
             None,
             TestChangeDetector::new(&[]),
-        );
+        )
+        .await;
         let packages = resolver
             .get_filtered_packages(vec![TargetSelector {
                 name_pattern: "bar".to_string(),
@@ -943,14 +948,15 @@ mod test {
         );
     }
 
-    #[test]
-    fn match_multiple_scoped() {
+    #[tokio::test]
+    async fn match_multiple_scoped() {
         let resolver = make_project(
             &[],
             &["packages/@foo/bar", "packages/@types/bar"],
             None,
             TestChangeDetector::new(&[]),
-        );
+        )
+        .await;
         let packages = resolver
             .get_filtered_packages(vec![TargetSelector {
                 name_pattern: "bar".to_string(),
@@ -1049,7 +1055,8 @@ mod test {
         &["package-1", "package-2"] ;
         "match dependency subtree"
     )]
-    fn scm(selectors: Vec<TargetSelector>, expected: &[&str]) {
+    #[tokio::test]
+    async fn scm(selectors: Vec<TargetSelector>, expected: &[&str]) {
         let scm_resolver = TestChangeDetector::new(&[
             ("HEAD~1", "HEAD", &["package-1", "package-2", ROOT_PKG_NAME]),
             ("HEAD~2", "HEAD~1", &["package-3"]),
@@ -1065,7 +1072,8 @@ mod test {
             &["package-1", "package-2"],
             None,
             scm_resolver,
-        );
+        )
+        .await;
 
         let packages = resolver.get_filtered_packages(selectors).unwrap();
         assert_eq!(

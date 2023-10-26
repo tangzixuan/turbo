@@ -6,6 +6,7 @@ use std::{
 use petgraph::visit::{depth_first_search, Reversed};
 use serde::Serialize;
 use turbopath::{AbsoluteSystemPath, AnchoredSystemPath, AnchoredSystemPathBuf};
+use turborepo_discovery::LocalPackageDiscovery;
 use turborepo_graph_utils as graph;
 use turborepo_lockfiles::Lockfile;
 
@@ -88,7 +89,7 @@ impl PackageGraph {
     pub fn builder(
         repo_root: &AbsoluteSystemPath,
         root_package_json: PackageJson,
-    ) -> PackageGraphBuilder {
+    ) -> PackageGraphBuilder<LocalPackageDiscovery> {
         PackageGraphBuilder::new(repo_root, root_package_json)
     }
 
@@ -412,14 +413,15 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn test_single_package_is_depends_on_root() {
+    #[tokio::test]
+    async fn test_single_package_is_depends_on_root() {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(&root, PackageJson::default())
             .with_package_manger(Some(PackageManager::Npm))
             .with_single_package_mode(true)
             .build()
+            .await
             .unwrap();
 
         let closure =
@@ -428,8 +430,8 @@ mod test {
         assert!(pkg_graph.validate().is_ok());
     }
 
-    #[test]
-    fn test_internal_dependencies_get_split_out() {
+    #[tokio::test]
+    async fn test_internal_dependencies_get_split_out() {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(
@@ -462,6 +464,7 @@ mod test {
             map
         }))
         .build()
+        .await
         .unwrap();
 
         assert!(pkg_graph.validate().is_ok());
@@ -545,8 +548,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_lockfile_traversal() {
+    #[tokio::test]
+    async fn test_lockfile_traversal() {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(
@@ -580,6 +583,7 @@ mod test {
         }))
         .with_lockfile(Some(Box::new(MockLockfile {})))
         .build()
+        .await
         .unwrap();
 
         assert!(pkg_graph.validate().is_ok());
@@ -611,8 +615,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_circular_dependency() {
+    #[tokio::test]
+    async fn test_circular_dependency() {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(
@@ -656,6 +660,7 @@ mod test {
         }))
         .with_lockfile(Some(Box::new(MockLockfile {})))
         .build()
+        .await
         .unwrap();
 
         assert_matches!(
@@ -666,8 +671,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_self_dependency() {
+    #[tokio::test]
+    async fn test_self_dependency() {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(
@@ -691,6 +696,7 @@ mod test {
         }))
         .with_lockfile(Some(Box::new(MockLockfile {})))
         .build()
+        .await
         .unwrap();
 
         assert_matches!(
