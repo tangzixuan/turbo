@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use tokio::sync::watch::Receiver;
 use turbopath::AbsoluteSystemPathBuf;
-use turborepo_discovery::{Error, PackageDiscovery, RootWorkspaceData};
+use turborepo_discovery::{Error, PackageDiscovery, WorkspaceData};
 
-use crate::daemon::{DaemonClient, FileWatching};
+use crate::daemon::{proto::PackageManager, DaemonClient, FileWatching};
 
 pub struct DaemonPackageDiscovery<'a, C: Clone> {
     daemon: &'a mut DaemonClient<C>,
@@ -17,14 +17,17 @@ impl<'a, C: Clone> DaemonPackageDiscovery<'a, C> {
 }
 
 impl<'a, C: Clone + Send> PackageDiscovery for DaemonPackageDiscovery<'a, C> {
-    async fn discover_packages(&mut self) -> Result<Vec<RootWorkspaceData>, Error> {
+    async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         Ok(self
             .daemon
             .discover_packages()
             .await
             .map_err(|_| Error::Failed)?
             .into_iter()
-            .map(|p| RootWorkspaceData {
+            .map(|p| WorkspaceData {
+                package_manager: PackageManager::from_i32(p.package_manager)
+                    .expect("valid")
+                    .into(),
                 package_json: AbsoluteSystemPathBuf::new(p.package_json).expect("absolute"),
                 turbo_json: p
                     .turbo_json
@@ -54,7 +57,7 @@ impl WatchingPackageDiscovery {
 }
 
 impl PackageDiscovery for WatchingPackageDiscovery {
-    async fn discover_packages(&mut self) -> Result<Vec<RootWorkspaceData>, Error> {
+    async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         // need to clone and drop the Ref before we can await
         let watcher = {
             let watcher = self

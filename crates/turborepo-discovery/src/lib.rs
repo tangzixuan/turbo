@@ -17,8 +17,9 @@ use turbopath::AbsoluteSystemPathBuf;
 use turborepo_repository::package_manager::{self, PackageManager};
 
 #[derive(Clone)]
-pub struct RootWorkspaceData {
+pub struct WorkspaceData {
     pub package_json: AbsoluteSystemPathBuf,
+    pub package_manager: PackageManager,
     pub turbo_json: Option<AbsoluteSystemPathBuf>,
 }
 
@@ -35,11 +36,11 @@ pub trait PackageDiscovery {
     // desugar to assert that the future is Send
     fn discover_packages(
         &mut self,
-    ) -> impl std::future::Future<Output = Result<Vec<RootWorkspaceData>, Error>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<WorkspaceData>, Error>> + Send;
 }
 
 impl<T: PackageDiscovery + Send> PackageDiscovery for Option<T> {
-    async fn discover_packages(&mut self) -> Result<Vec<RootWorkspaceData>, Error> {
+    async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         match self {
             Some(d) => d.discover_packages().await,
             None => Err(Error::Unavailable),
@@ -60,22 +61,26 @@ impl LocalPackageDiscovery {
 }
 
 impl PackageDiscovery for LocalPackageDiscovery {
-    async fn discover_packages(&mut self) -> Result<Vec<RootWorkspaceData>, Error> {
+    async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         iter(
             self.manager
                 .get_package_jsons(&self.repo_root)
                 .map_err(|_e| Error::Failed)?,
         )
-        .then(move |a| async {
-            let potential_turbo = a.parent().expect("non-root").join_component("turbo.json");
-            let potential_turbo_exists = tokio::fs::try_exists(potential_turbo.as_path()).await;
+        .then(move |a| {
+            let package_manager = self.manager.clone();
+            async {
+                let potential_turbo = a.parent().expect("non-root").join_component("turbo.json");
+                let potential_turbo_exists = tokio::fs::try_exists(potential_turbo.as_path()).await;
 
-            Ok(RootWorkspaceData {
-                package_json: a,
-                turbo_json: potential_turbo_exists
-                    .ok()
-                    .and_then(|pe| pe.then_some(potential_turbo)),
-            })
+                Ok(WorkspaceData {
+                    package_manager,
+                    package_json: a,
+                    turbo_json: potential_turbo_exists
+                        .ok()
+                        .and_then(|pe| pe.then_some(potential_turbo)),
+                })
+            }
         })
         .collect()
         .await
@@ -103,7 +108,7 @@ impl<P: PackageDiscovery, F: PackageDiscovery> FallbackPackageDiscovery<P, F> {
 impl<A: PackageDiscovery + Send, B: PackageDiscovery + Send> PackageDiscovery
     for FallbackPackageDiscovery<A, B>
 {
-    async fn discover_packages(&mut self) -> Result<Vec<RootWorkspaceData>, Error> {
+    async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         match tokio::time::timeout(self.timeout, self.primary.discover_packages()).await {
             Ok(Ok(packages)) => Ok(packages),
             Ok(Err(err1)) => match self.fallback.discover_packages().await {

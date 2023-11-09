@@ -67,4 +67,15 @@ message DiscoverPackagesResponse {
 message PackageFiles {
   string package_json = 1;
   optional string turbo_json = 2;
+  PackageManager package_manager = 3;
+
+}
+
+enum PackageManager {
+  Berry = 0;
+  Npm = 1;
+  Pnpm = 2;
+  Pnpm6 = 3;
+  Yarn = 4;
+  Bun = 5;
 }

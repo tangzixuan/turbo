@@ -428,6 +428,7 @@ impl proto::turbod_server::Turbod for TurboGrpcService {
                         .map(|d| proto::PackageFiles {
                             package_json: d.package_json.to_string(),
                             turbo_json: d.turbo_json.map(|t| t.to_string()),
+                            package_manager: proto::PackageManager::from(d.package_manager).into(),
                         })
                         .collect(),
                 })

@@ -16,7 +16,7 @@ use tokio::{
     },
 };
 use turbopath::AbsoluteSystemPathBuf;
-use turborepo_discovery::{PackageDiscovery, RootWorkspaceData};
+use turborepo_discovery::{PackageDiscovery, WorkspaceData};
 use turborepo_repository::package_manager::{self, Error, PackageManager, WorkspaceGlobs};
 
 use crate::NotifyError;
@@ -28,7 +28,7 @@ pub struct PackageWatcher {
     // to be notified of a close.
     _exit_tx: oneshot::Sender<()>,
     _handle: tokio::task::JoinHandle<()>,
-    package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, RootWorkspaceData>>>,
+    package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, WorkspaceData>>>,
 }
 
 impl PackageWatcher {
@@ -49,7 +49,7 @@ impl PackageWatcher {
         })
     }
 
-    pub async fn get_package_data(&self) -> Vec<RootWorkspaceData> {
+    pub async fn get_package_data(&self) -> Vec<WorkspaceData> {
         self.package_data
             .lock()
             .expect("not poisoned")
@@ -65,7 +65,7 @@ struct Subscriber<T: PackageDiscovery> {
     exit_rx: oneshot::Receiver<()>,
     filter: WorkspaceGlobs,
     recv: broadcast::Receiver<Result<Event, NotifyError>>,
-    package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, RootWorkspaceData>>>,
+    package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, WorkspaceData>>>,
     manager: PackageManager,
     repo_root: AbsoluteSystemPathBuf,
     discovery: T,
@@ -75,7 +75,7 @@ impl<T: PackageDiscovery + Send + 'static> Subscriber<T> {
     fn new(
         exit_rx: oneshot::Receiver<()>,
         repo_root: AbsoluteSystemPathBuf,
-        package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, RootWorkspaceData>>>,
+        package_data: Arc<Mutex<HashMap<AbsoluteSystemPathBuf, WorkspaceData>>>,
         recv: broadcast::Receiver<Result<Event, NotifyError>>,
         discovery: T,
     ) -> Result<Self, Error> {
@@ -187,7 +187,8 @@ impl<T: PackageDiscovery + Send + 'static> Subscriber<T> {
                     if let Ok(true) = package_exists {
                         data.insert(
                             path_workspace,
-                            RootWorkspaceData {
+                            WorkspaceData {
+                                package_manager: self.manager.clone(),
                                 package_json,
                                 turbo_json: turbo_exists.unwrap_or_default().then_some(turbo_json),
                             },
