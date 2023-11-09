@@ -365,15 +365,10 @@ impl PackageManager {
     }
 
     pub fn workspace_glob_source(&self, root_path: &AbsoluteSystemPath) -> AbsoluteSystemPathBuf {
-        match self {
-            PackageManager::Pnpm | PackageManager::Pnpm6 => {
-                root_path.join_component("pnpm-workspace.yaml")
-            }
-            PackageManager::Berry
-            | PackageManager::Yarn
-            | PackageManager::Npm
-            | PackageManager::Bun => root_path.join_component("package.json"),
-        }
+        root_path.join_component(
+            self.workspace_configuration_path()
+                .unwrap_or("package.json"),
+        )
     }
 
     // TODO: consider if this method should not need an Option, and possibly be a
