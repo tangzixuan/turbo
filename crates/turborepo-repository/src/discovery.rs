@@ -11,7 +11,8 @@
 
 use tokio_stream::{iter, StreamExt};
 use turbopath::AbsoluteSystemPathBuf;
-use turborepo_repository::package_manager::{self, PackageManager};
+
+use crate::package_manager::PackageManager;
 
 #[derive(Clone)]
 pub struct WorkspaceData {
@@ -68,7 +69,7 @@ impl PackageDiscovery for LocalPackageDiscovery {
         )
         .then(move |a| {
             let package_manager = self.package_manager.clone();
-            async {
+            async move {
                 let potential_turbo = a.parent().expect("non-root").join_component("turbo.json");
                 let potential_turbo_exists = tokio::fs::try_exists(potential_turbo.as_path()).await;
 

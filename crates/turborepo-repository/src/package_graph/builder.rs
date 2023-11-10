@@ -11,11 +11,11 @@ use turbopath::{
     RelativeUnixPathBuf,
 };
 use turborepo_graph_utils as graph;
-use turborepo_discovery::{LocalPackageDiscovery, PackageDiscovery};
 use turborepo_lockfiles::Lockfile;
 
 use super::{PackageGraph, WorkspaceInfo, WorkspaceName, WorkspaceNode};
 use crate::{
+    discovery::{LocalPackageDiscovery, PackageDiscovery},
     package_graph::{PackageName, PackageVersion},
     package_json::PackageJson,
     package_manager::PackageManager,
@@ -58,7 +58,7 @@ pub enum Error {
     #[error(transparent)]
     Lockfile(#[from] turborepo_lockfiles::Error),
     #[error(transparent)]
-    Discovery(#[from] turborepo_discovery::Error),
+    Discovery(#[from] crate::discovery::Error),
 }
 
 impl<'a> PackageGraphBuilder<'a, LocalPackageDiscovery> {

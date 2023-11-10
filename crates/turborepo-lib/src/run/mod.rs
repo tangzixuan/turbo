@@ -25,13 +25,13 @@ use turborepo_analytics::{start_analytics, AnalyticsHandle, AnalyticsSender};
 use turborepo_api_client::{APIAuth, APIClient};
 use turborepo_cache::{AsyncCache, RemoteCacheOpts};
 use turborepo_ci::Vendor;
-use turborepo_discovery::{FallbackPackageDiscovery, LocalPackageDiscovery};
 use turborepo_env::EnvironmentVariableMap;
 use turborepo_repository::{
+    discovery::{FallbackPackageDiscovery, LocalPackageDiscovery},
     package_graph::{PackageGraph, WorkspaceName},
     package_json::PackageJson,
+    package_manager::PackageManager,
 };
-use turborepo_repository::{package_json::PackageJson, package_manager::PackageManager};
 use turborepo_scm::SCM;
 use turborepo_ui::{cprint, cprintln, ColorSelector, BOLD_GREY, GREY};
 
@@ -237,8 +237,7 @@ impl<'a> Run<'a> {
             opts.run_opts.experimental_space_id = root_turbo_json.space_id.clone();
         }
 
-        pkg_dep_graph
-            .validate()?;
+        pkg_dep_graph.validate()?;
 
         let scm = SCM::new(&self.base.repo_root);
 

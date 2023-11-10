@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::watch::Receiver;
 use turbopath::AbsoluteSystemPathBuf;
-use turborepo_discovery::{Error, PackageDiscovery, WorkspaceData};
+use turborepo_repository::discovery::{Error, PackageDiscovery, WorkspaceData};
 
 use crate::daemon::{proto::PackageManager, DaemonClient, FileWatching};
 

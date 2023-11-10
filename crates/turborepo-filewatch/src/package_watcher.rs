@@ -17,8 +17,10 @@ use tokio::{
     },
 };
 use turbopath::{AbsoluteSystemPath, AbsoluteSystemPathBuf};
-use turborepo_discovery::{PackageDiscovery, WorkspaceData};
-use turborepo_repository::package_manager::{self, Error, PackageManager, WorkspaceGlobs};
+use turborepo_repository::{
+    discovery::{PackageDiscovery, WorkspaceData},
+    package_manager::{self, Error, PackageManager, WorkspaceGlobs},
+};
 
 use crate::NotifyError;
 

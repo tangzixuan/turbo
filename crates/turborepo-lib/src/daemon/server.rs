@@ -31,14 +31,16 @@ use tonic::transport::{NamedService, Server};
 use tower::ServiceBuilder;
 use tracing::{error, info, trace, warn};
 use turbopath::{AbsoluteSystemPath, AbsoluteSystemPathBuf};
-use turborepo_discovery::{LocalPackageDiscovery, PackageDiscovery};
 use turborepo_filewatch::{
     cookie_jar::CookieJar,
     globwatcher::{Error as GlobWatcherError, GlobError, GlobSet, GlobWatcher},
     package_watcher::PackageWatcher,
     FileSystemWatcher, WatchError,
 };
-use turborepo_repository::package_manager::PackageManager;
+use turborepo_repository::{
+    discovery::{LocalPackageDiscovery, PackageDiscovery},
+    package_manager::PackageManager,
+};
 
 use super::{
     bump_timeout::BumpTimeout,

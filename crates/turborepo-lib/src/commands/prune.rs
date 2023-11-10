@@ -10,6 +10,7 @@ use turbopath::{
 use turborepo_repository::{
     package_graph::{self, PackageGraph, WorkspaceName, WorkspaceNode},
     package_json::PackageJson,
+    package_manager::PackageManager,
 };
 use turborepo_ui::BOLD;
 

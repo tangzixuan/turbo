@@ -10490,17 +10490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "turborepo-discovery"
-version = "0.1.0"
-dependencies = [
- "thiserror",
- "tokio",
- "tokio-stream",
- "turbopath",
- "turborepo-repository",
-]
-
-[[package]]
 name = "turborepo-env"
 version = "0.1.0"
 dependencies = [
@@ -10549,7 +10538,6 @@ dependencies = [
  "tokio-scoped",
  "tracing",
  "turbopath",
- "turborepo-discovery",
  "turborepo-repository",
  "walkdir",
  "wax",
@@ -10668,7 +10656,6 @@ dependencies = [
  "turborepo-auth",
  "turborepo-cache",
  "turborepo-ci",
- "turborepo-discovery",
  "turborepo-env",
  "turborepo-filewatch",
  "turborepo-fs",
@@ -10737,6 +10724,8 @@ dependencies = [
  "tempfile",
  "test-case",
  "thiserror",
+ "tokio",
+ "tokio-stream",
  "tracing",
  "turbopath",
  "turborepo-graph-utils",
