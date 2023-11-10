@@ -256,8 +256,11 @@ impl<'a> Prune<'a> {
         let root_package_json_path = base.repo_root.join_component("package.json");
         let root_package_json = PackageJson::load(&root_package_json_path)?;
 
-        let package_graph = PackageGraph::builder(&base.repo_root, root_package_json)
-            .build_default()
+        let manager =
+            PackageManager::get_package_manager(&base.repo_root, Some(&root_package_json)).unwrap();
+
+        let package_graph = PackageGraph::builder(&base.repo_root, root_package_json, manager)
+            .build()
             .await?;
 
         let out_directory = AbsoluteSystemPathBuf::from_unknown(&base.repo_root, output_dir);

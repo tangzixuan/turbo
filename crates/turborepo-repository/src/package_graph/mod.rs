@@ -89,8 +89,9 @@ impl PackageGraph {
     pub fn builder(
         repo_root: &AbsoluteSystemPath,
         root_package_json: PackageJson,
-    ) -> PackageGraphBuilder<()> {
-        PackageGraphBuilder::new(repo_root, root_package_json)
+        manager: PackageManager,
+    ) -> PackageGraphBuilder<LocalPackageDiscovery> {
+        PackageGraphBuilder::new(repo_root, root_package_json, manager)
     }
 
     #[tracing::instrument(skip(self))]

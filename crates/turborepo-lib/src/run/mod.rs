@@ -31,6 +31,7 @@ use turborepo_repository::{
     package_graph::{PackageGraph, WorkspaceName},
     package_json::PackageJson,
 };
+use turborepo_repository::{package_json::PackageJson, package_manager::PackageManager};
 use turborepo_scm::SCM;
 use turborepo_ui::{cprint, cprintln, ColorSelector, BOLD_GREY, GREY};
 
@@ -199,15 +200,21 @@ impl<'a> Run<'a> {
             daemon = Some(client);
         }
 
-        let mut pkg_dep_graph = PackageGraph::builder(&self.base.repo_root, root_package_json.clone())
-            .with_single_package_mode(opts.run_opts.single_package)
-            .with_package_discovery(FallbackPackageDiscovery::new(
-                daemon.as_mut().map(DaemonPackageDiscovery::new),
-                LocalPackageDiscovery::new(self.base.repo_root.clone()).unwrap(),
-                Duration::from_millis(10),
-            ))
-            .build()
-            .await?;
+        let manager = PackageManager::get_package_manager(&self.base.repo_root, None)?;
+
+        let mut pkg_dep_graph = PackageGraph::builder(
+            &self.base.repo_root,
+            root_package_json.clone(),
+            manager.clone(),
+        )
+        .with_single_package_mode(opts.run_opts.single_package)
+        .with_package_discovery(FallbackPackageDiscovery::new(
+            daemon.as_mut().map(DaemonPackageDiscovery::new),
+            LocalPackageDiscovery::new(self.base.repo_root.clone(), manager),
+            Duration::from_millis(10),
+        ))
+        .build()
+        .await?;
 
         let root_turbo_json =
             TurboJson::load(&self.base.repo_root, &root_package_json, is_single_package)?;
@@ -453,10 +460,14 @@ impl<'a> Run<'a> {
 
         let is_single_package = opts.run_opts.single_package;
 
-        let mut pkg_dep_graph = PackageGraph::builder(&self.base.repo_root, root_package_json.clone())
-            .with_single_package_mode(opts.run_opts.single_package)
-            .build_default()
-            .await?;
+        let manager =
+            PackageManager::get_package_manager(&self.base.repo_root, Some(&root_package_json))?;
+
+        let mut pkg_dep_graph =
+            PackageGraph::builder(&self.base.repo_root, root_package_json.clone(), manager)
+                .with_single_package_mode(opts.run_opts.single_package)
+                .build()
+                .await?;
 
         let root_turbo_json =
             TurboJson::load(&self.base.repo_root, &root_package_json, is_single_package)?;

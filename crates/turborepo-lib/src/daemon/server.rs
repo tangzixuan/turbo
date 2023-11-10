@@ -38,6 +38,7 @@ use turborepo_filewatch::{
     package_watcher::PackageWatcher,
     FileSystemWatcher, WatchError,
 };
+use turborepo_repository::package_manager::PackageManager;
 
 use super::{
     bump_timeout::BumpTimeout,
@@ -103,10 +104,11 @@ async fn start_filewatching(
         watcher.subscribe(),
     );
     let glob_watcher = GlobWatcher::new(&repo_root, cookie_jar, watcher.subscribe());
+    let manager = PackageManager::get_package_manager(&repo_root, None).unwrap();
     let package_watcher = PackageWatcher::new(
         repo_root.clone(),
         watcher.subscribe(),
-        LocalPackageDiscovery::new(repo_root).map_err(|e| WatchError::Setup(format!("{}", e)))?,
+        LocalPackageDiscovery::new(repo_root, manager),
     )
     .map_err(|e| WatchError::Setup(format!("{:?}", e)))?;
     // We can ignore failures here, it means the server is shutting down and

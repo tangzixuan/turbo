@@ -25,7 +25,7 @@ pub struct PackageGraphBuilder<'a, T> {
     repo_root: &'a AbsoluteSystemPath,
     root_package_json: PackageJson,
     is_single_package: bool,
-    package_manager: Option<PackageManager>,
+    package_manager: PackageManager,
     package_jsons: Option<HashMap<AbsoluteSystemPathBuf, PackageJson>>,
     lockfile: Option<Box<dyn Lockfile>>,
     package_discovery: T,
@@ -61,16 +61,23 @@ pub enum Error {
     Discovery(#[from] turborepo_discovery::Error),
 }
 
-impl<'a> PackageGraphBuilder<'a, ()> {
-    pub fn new(repo_root: &'a AbsoluteSystemPath, root_package_json: PackageJson) -> Self {
+impl<'a> PackageGraphBuilder<'a, LocalPackageDiscovery> {
+    pub fn new(
+        repo_root: &'a AbsoluteSystemPath,
+        root_package_json: PackageJson,
+        package_manager: PackageManager,
+    ) -> Self {
         Self {
+            package_discovery: LocalPackageDiscovery::new(
+                repo_root.to_owned(),
+                package_manager.clone(),
+            ),
             repo_root,
             root_package_json,
             is_single_package: false,
-            package_manager: None,
+            package_manager,
             package_jsons: None,
             lockfile: None,
-            package_discovery: (), // unset
         }
     }
 }
@@ -82,7 +89,7 @@ impl<'a, P> PackageGraphBuilder<'a, P> {
     }
 
     #[allow(dead_code)]
-    pub fn with_package_manager(mut self, package_manager: Option<PackageManager>) -> Self {
+    pub fn with_package_manager(mut self, package_manager: PackageManager) -> Self {
         self.package_manager = package_manager;
         self
     }
@@ -116,23 +123,6 @@ impl<'a, P> PackageGraphBuilder<'a, P> {
             lockfile: self.lockfile,
             package_discovery: discovery,
         }
-    }
-}
-
-impl<'a> PackageGraphBuilder<'a, ()> {
-    /// Build the `PackageGraph` with the default package discovery strategy.
-    #[tracing::instrument(skip(self))]
-    pub async fn build_default(self) -> Result<PackageGraph, Error> {
-        let builder = PackageGraphBuilder {
-            package_discovery: LocalPackageDiscovery::new(self.repo_root.to_owned())?,
-            is_single_package: self.is_single_package,
-            lockfile: self.lockfile,
-            package_jsons: self.package_jsons,
-            package_manager: self.package_manager,
-            repo_root: self.repo_root,
-            root_package_json: self.root_package_json,
-        };
-        builder.build().await
     }
 }
 
@@ -203,10 +193,6 @@ impl<'a, T: PackageDiscovery> BuildState<'a, ResolvedPackageManager, T> {
             lockfile,
             package_discovery,
         } = builder;
-        let package_manager = package_manager.map_or_else(
-            || PackageManager::get_package_manager(repo_root, Some(&root_package_json)),
-            Ok,
-        )?;
         let mut workspaces = HashMap::new();
         workspaces.insert(
             WorkspaceName::Root,

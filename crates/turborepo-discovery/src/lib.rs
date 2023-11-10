@@ -9,9 +9,6 @@
 //! these strategies will implement some sort of monad-style composition so that
 //! we can track areas of run that are performing sub-optimally.
 
-#![feature(async_fn_in_trait)]
-#![feature(return_position_impl_trait_in_trait)]
-
 use tokio_stream::{iter, StreamExt};
 use turbopath::AbsoluteSystemPathBuf;
 use turborepo_repository::package_manager::{self, PackageManager};
@@ -50,25 +47,27 @@ impl<T: PackageDiscovery + Send> PackageDiscovery for Option<T> {
 
 pub struct LocalPackageDiscovery {
     repo_root: AbsoluteSystemPathBuf,
-    manager: PackageManager,
+    package_manager: PackageManager,
 }
 
 impl LocalPackageDiscovery {
-    pub fn new(repo_root: AbsoluteSystemPathBuf) -> Result<Self, package_manager::Error> {
-        let manager = PackageManager::get_package_manager(&repo_root, None)?;
-        Ok(Self { repo_root, manager })
+    pub fn new(repo_root: AbsoluteSystemPathBuf, package_manager: PackageManager) -> Self {
+        Self {
+            repo_root,
+            package_manager,
+        }
     }
 }
 
 impl PackageDiscovery for LocalPackageDiscovery {
     async fn discover_packages(&mut self) -> Result<Vec<WorkspaceData>, Error> {
         iter(
-            self.manager
+            self.package_manager
                 .get_package_jsons(&self.repo_root)
                 .map_err(|_e| Error::Failed)?,
         )
         .then(move |a| {
-            let package_manager = self.manager.clone();
+            let package_manager = self.package_manager.clone();
             async {
                 let potential_turbo = a.parent().expect("non-root").join_component("turbo.json");
                 let potential_turbo_exists = tokio::fs::try_exists(potential_turbo.as_path()).await;
