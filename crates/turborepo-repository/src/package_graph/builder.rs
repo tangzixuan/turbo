@@ -82,7 +82,7 @@ impl<'a, P> PackageGraphBuilder<'a, P> {
     }
 
     #[allow(dead_code)]
-    pub fn with_package_manger(mut self, package_manager: Option<PackageManager>) -> Self {
+    pub fn with_package_manager(mut self, package_manager: Option<PackageManager>) -> Self {
         self.package_manager = package_manager;
         self
     }
@@ -756,7 +756,7 @@ mod test {
                 ..Default::default()
             },
         )
-        .with_package_manger(Some(PackageManager::Npm))
+        .with_package_manager(Some(PackageManager::Npm))
         .with_package_jsons(Some({
             let mut map = HashMap::new();
             map.insert(

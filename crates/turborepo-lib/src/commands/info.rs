@@ -41,7 +41,7 @@ pub async fn run(base: &mut CommandBase, workspace: Option<&str>, json: bool) ->
         PackageManager::get_package_manager(&base.repo_root, Some(&root_package_json))?;
 
     let package_graph = PackageGraph::builder(&base.repo_root, root_package_json)
-        .with_package_manger(Some(package_manager))
+        .with_package_manager(Some(package_manager))
         .build_default()
         .await?;
 

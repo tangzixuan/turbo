@@ -484,7 +484,7 @@ mod test {
         jsons: HashMap<AbsoluteSystemPathBuf, PackageJson>,
     ) -> PackageGraph {
         PackageGraph::builder(repo_root, PackageJson::default())
-            .with_package_manger(Some(PackageManager::Npm))
+            .with_package_manager(Some(PackageManager::Npm))
             .with_lockfile(Some(Box::new(MockLockfile)))
             .with_package_jsons(Some(jsons))
             .build()

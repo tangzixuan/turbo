@@ -649,7 +649,7 @@ mod test {
         let pkg_graph = Box::leak(Box::new(
             PackageGraph::builder(turbo_root, Default::default())
                 .with_package_jsons(Some(package_jsons))
-                .with_package_manger(Some(PackageManager::Pnpm6))
+                .with_package_manager(Some(PackageManager::Pnpm6))
                 .build()
                 .await
                 .unwrap(),

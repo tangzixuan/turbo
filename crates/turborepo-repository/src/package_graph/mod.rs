@@ -418,7 +418,7 @@ mod test {
         let root =
             AbsoluteSystemPathBuf::new(if cfg!(windows) { r"C:\repo" } else { "/repo" }).unwrap();
         let pkg_graph = PackageGraph::builder(&root, PackageJson::default())
-            .with_package_manger(Some(PackageManager::Npm))
+            .with_package_manager(Some(PackageManager::Npm))
             .with_single_package_mode(true)
             .build()
             .await
@@ -438,7 +438,7 @@ mod test {
             &root,
             PackageJson::from_value(json!({ "name": "root" })).unwrap(),
         )
-        .with_package_manger(Some(PackageManager::Npm))
+        .with_package_manager(Some(PackageManager::Npm))
         .with_package_jsons(Some({
             let mut map = HashMap::new();
             map.insert(
@@ -556,7 +556,7 @@ mod test {
             &root,
             PackageJson::from_value(json!({ "name": "root" })).unwrap(),
         )
-        .with_package_manger(Some(PackageManager::Npm))
+        .with_package_manager(Some(PackageManager::Npm))
         .with_package_jsons(Some({
             let mut map = HashMap::new();
             map.insert(
@@ -623,7 +623,7 @@ mod test {
             &root,
             PackageJson::from_value(json!({ "name": "root" })).unwrap(),
         )
-        .with_package_manger(Some(PackageManager::Npm))
+        .with_package_manager(Some(PackageManager::Npm))
         .with_package_jsons(Some({
             let mut map = HashMap::new();
             map.insert(
@@ -679,7 +679,7 @@ mod test {
             &root,
             PackageJson::from_value(json!({ "name": "root" })).unwrap(),
         )
-        .with_package_manger(Some(PackageManager::Npm))
+        .with_package_manager(Some(PackageManager::Npm))
         .with_package_jsons(Some({
             let mut map = HashMap::new();
             map.insert(
