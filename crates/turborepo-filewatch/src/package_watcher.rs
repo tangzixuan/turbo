@@ -4,6 +4,7 @@
 use std::{
     collections::HashMap,
     future::IntoFuture,
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -15,7 +16,7 @@ use tokio::{
         oneshot,
     },
 };
-use turbopath::AbsoluteSystemPathBuf;
+use turbopath::{AbsoluteSystemPath, AbsoluteSystemPathBuf};
 use turborepo_discovery::{PackageDiscovery, WorkspaceData};
 use turborepo_repository::package_manager::{self, Error, PackageManager, WorkspaceGlobs};
 
@@ -69,6 +70,12 @@ struct Subscriber<T: PackageDiscovery> {
     manager: PackageManager,
     repo_root: AbsoluteSystemPathBuf,
     discovery: T,
+
+    // stored as PathBuf to avoid processing later.
+    // if package_json changes, we need to re-infer
+    // the package manager
+    package_json_path: std::path::PathBuf,
+    workspace_config_path: std::path::PathBuf,
 }
 
 impl<T: PackageDiscovery + Send + 'static> Subscriber<T> {
@@ -81,14 +88,20 @@ impl<T: PackageDiscovery + Send + 'static> Subscriber<T> {
     ) -> Result<Self, Error> {
         let manager = PackageManager::get_package_manager(&repo_root, None)?;
 
+        let (package_json_path, workspace_config_path, filter) =
+            Self::update_package_manager(&manager, &repo_root)?;
+
         Ok(Self {
             exit_rx,
-            filter: manager.get_workspace_globs(&repo_root)?,
+            filter,
             package_data,
             recv,
             manager,
             repo_root,
             discovery,
+
+            package_json_path,
+            workspace_config_path,
         })
     }
 
@@ -115,16 +128,63 @@ impl<T: PackageDiscovery + Send + 'static> Subscriber<T> {
         }
     }
 
-    async fn handle_file_event(&mut self, file_event: Event) {
-        let glob_source_change = self.manager.workspace_glob_source(&self.repo_root);
+    fn update_package_manager(
+        manager: &PackageManager,
+        repo_root: &AbsoluteSystemPath,
+    ) -> Result<(PathBuf, PathBuf, WorkspaceGlobs), Error> {
+        let package_json_path = repo_root
+            .join_component("package.json")
+            .as_std_path()
+            .to_owned();
 
+        let workspace_config_path = manager
+            .workspace_configuration_path()
+            .map_or(package_json_path.clone(), |p| {
+                repo_root.join_component(p).as_std_path().to_owned()
+            });
+        let filter = manager.get_workspace_globs(repo_root)?;
+
+        Ok((package_json_path, workspace_config_path, filter))
+    }
+
+    async fn handle_file_event(&mut self, file_event: Event) {
         tracing::trace!("file event: {:?}", file_event);
+
+        if file_event
+            .paths
+            .iter()
+            .any(|p| self.package_json_path.eq(p))
+        {
+            tracing::debug!("package.json changed");
+            // if the package.json changed, we need to re-infer the package manager
+            // and update the glob list
+            let new_manager =
+                PackageManager::get_package_manager(&self.repo_root, None).and_then(|manager| {
+                    Self::update_package_manager(&manager, &self.repo_root)
+                        .map(|(a, b, c)| (manager, a, b, c))
+                });
+
+            match new_manager {
+                Ok((new_manager, package_json_path, workspace_config_path, filter)) => {
+                    self.manager = new_manager;
+                    self.package_json_path = package_json_path;
+                    self.workspace_config_path = workspace_config_path;
+                    self.filter = filter;
+                }
+                Err(e) => {
+                    // a change in the package json does not necessarily mean
+                    // that the package manager has changed, so continue with
+                    // best effort
+                    tracing::error!("error getting package manager: {}", e);
+                }
+            }
+        }
 
         // if it is the package manager, update the glob list
         let changed = if file_event
             .paths
             .iter()
-            .any(|p| glob_source_change.as_path().eq(p))
+            .any(|p| self.workspace_config_path.eq(p))
         {
             let new_filter = self
                 .manager
