@@ -1,6 +1,5 @@
 use std::backtrace;
 
-use itertools::Itertools;
 use thiserror::Error;
 use turbopath::AnchoredSystemPathBuf;
 use turborepo_cache::CacheOpts;

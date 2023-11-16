@@ -4,7 +4,7 @@ mod cache;
 mod error;
 pub(crate) mod global_hash;
 pub(crate) mod package_discovery;
-mod scope;
+pub(crate) mod scope;
 pub(crate) mod summary;
 pub mod task_id;
 
