@@ -6,6 +6,7 @@ use turborepo_repository::discovery::{Error, PackageDiscovery, WorkspaceData};
 
 use crate::daemon::{proto::PackageManager, DaemonClient, FileWatching};
 
+#[derive(Debug)]
 pub struct DaemonPackageDiscovery<'a, C: Clone> {
     daemon: &'a mut DaemonClient<C>,
 }
@@ -22,7 +23,7 @@ impl<'a, C: Clone + Send> PackageDiscovery for DaemonPackageDiscovery<'a, C> {
             .daemon
             .discover_packages()
             .await
-            .map_err(|_| Error::Failed)?
+            .map_err(|e| Error::Failed(e.to_string()))?
             .into_iter()
             .map(|p| WorkspaceData {
                 package_manager: PackageManager::from_i32(p.package_manager)
@@ -64,7 +65,7 @@ impl PackageDiscovery for WatchingPackageDiscovery {
                 .watcher
                 .wait_for(|opt| opt.is_some())
                 .await
-                .map_err(|_| Error::Failed)?;
+                .map_err(|e| Error::Failed(e.to_string()))?;
             watcher.as_ref().expect("guaranteed some above").clone()
         };
         Ok(watcher.package_watcher.get_package_data().await)
