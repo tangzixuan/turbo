@@ -14,7 +14,7 @@ use turbopath::AbsoluteSystemPathBuf;
 
 use crate::package_manager::PackageManager;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorkspaceData {
     pub package_json: AbsoluteSystemPathBuf,
     pub package_manager: PackageManager,

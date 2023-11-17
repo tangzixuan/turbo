@@ -34,7 +34,11 @@ struct WorkspaceDetails<'a> {
     dependencies: Vec<&'a str>,
 }
 
-pub async fn run(base: &mut CommandBase, workspace: Option<&str>, json: bool) -> Result<(), cli::Error> {
+pub async fn run(
+    base: &mut CommandBase,
+    workspace: Option<&str>,
+    json: bool,
+) -> Result<(), cli::Error> {
     let root_package_json = PackageJson::load(&base.repo_root.join_component("package.json"))?;
 
     let package_manager =
