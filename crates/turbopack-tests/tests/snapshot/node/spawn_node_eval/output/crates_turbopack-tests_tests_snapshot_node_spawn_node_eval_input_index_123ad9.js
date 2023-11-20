@@ -3,4 +3,7 @@
     {},
     {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_node_spawn_node_eval_input_d0030e._.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/node/spawn_node_eval/input/index.js [test] (ecmascript)"]}
 ]);
+
+const RUNTIME_PUBLIC_PATH = "output/crates_turbopack-tests_tests_snapshot_node_spawn_node_eval_input_index_123ad9.js";
+const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/node/spawn_node_eval";
 // Dummy runtime

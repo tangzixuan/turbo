@@ -3,4 +3,7 @@
     {},
     {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_imports_static_input_4175d9._.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js [test] (ecmascript)"]}
 ]);
+
+const RUNTIME_PUBLIC_PATH = "output/crates_turbopack-tests_tests_snapshot_imports_static_input_index_300143.js";
+const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/imports/static";
 // Dummy runtime

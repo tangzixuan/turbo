@@ -3,4 +3,7 @@
     {},
     {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_b94ed5._.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/index.js [test] (ecmascript)"]}
 ]);
+
+const RUNTIME_PUBLIC_PATH = "output/79fb1_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_index_bf1234.js";
+const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple";
 // Dummy runtime
