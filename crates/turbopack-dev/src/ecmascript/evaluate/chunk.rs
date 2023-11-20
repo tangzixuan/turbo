@@ -123,6 +123,7 @@ impl EcmascriptDevEvaluateChunk {
         };
 
         let mut code = CodeBuilder::default();
+        let output_root = output_root.to_string();
 
         // We still use the `TURBOPACK` global variable to store the chunk here,
         // as there may be another runtime already loaded in the page.
@@ -135,9 +136,14 @@ impl EcmascriptDevEvaluateChunk {
                     {{}},
                     {}
                 ]);
+
+                const RUNTIME_PUBLIC_PATH = {};
+                const OUTPUT_ROOT = {};
             "#,
             StringifyJs(&chunk_public_path),
             StringifyJs(&params),
+            StringifyJs(chunk_public_path),
+            StringifyJs(output_root.as_str()),
         )?;
 
         match chunking_context.runtime_type() {
